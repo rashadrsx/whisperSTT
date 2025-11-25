@@ -2,7 +2,7 @@
 
 This project uses the `faster-whisper` library to provide fast and accurate audio and video transcription. It can be used to transcribe single files or to watch a directory and automatically transcribe new files as they are added.
 
-## Features
+### Features
 
 *   **Fast and Accurate Transcription:** Utilizes `faster-whisper` for efficient transcription.
 *   **GPU Acceleration:** Supports NVIDIA GPUs (CUDA) for significantly faster performance.
