@@ -1,116 +1,154 @@
-# Whisper Transcription Project
+# whisperstt
 
-This project uses the `faster-whisper` library to provide fast and accurate audio and video transcription. It can be used to transcribe single files or to watch a directory and automatically transcribe new files as they are added.
+Transcribe audio and video files into `.srt` subtitles, running on your GPU when
+you have one. Powered by [`faster-whisper`](https://github.com/SYSTRAN/faster-whisper).
 
-### Features
+```console
+$ whisperstt Snatch.2000.1080p.BluRay.x264-YTS.AM.mp4
 
-*   **Fast and Accurate Transcription:** Utilizes `faster-whisper` for efficient transcription.
-*   **GPU Acceleration:** Supports NVIDIA GPUs (CUDA) for significantly faster performance.
-*   **Automatic Device Detection:** Automatically detects and uses the best available device (CUDA, ROCm, CPU).
-*   **File Watching:** Can monitor a directory and automatically transcribe new files.
-*   **Markdown Output:** Saves transcriptions in a clean and readable Markdown format.
+Loading model...
 
-## Dependencies
+Snatch.2000.1080p.BluRay.x264-YTS.AM.mp4
+Transcribing 1:42:46 of audio...
+Saved 1674 subtitles -> Snatch.2000.1080p.BluRay.x264-YTS.AM.srt
+```
 
-### Software
+## Requirements
 
-*   **Python 3:** The project is written in Python.
-*   **FFmpeg:** A cross-platform solution to record, convert and stream audio and video. It is used to extract audio from video files.
-*   **CUDA and cuDNN (for NVIDIA GPUs):**
-    *   **CUDA Toolkit:** A parallel computing platform and programming model developed by NVIDIA for general computing on graphical processing units (GPUs).
-    *   **cuDNN (CUDA Deep Neural Network library):** A GPU-accelerated library of primitives for deep neural networks. It is required for `faster-whisper` to run on an NVIDIA GPU.
+* **Python 3.9+**
+* **FFmpeg** — used to decode the audio track
+* An **NVIDIA GPU** is optional. Without one, transcription runs on the CPU and
+  is much slower.
 
-### Python Packages
+## Install
 
-The following Python packages are required:
+```bash
+git clone <this repository> && cd whisperSTT
+./install.sh
+```
 
-*   `faster-whisper`: The core transcription library.
-*   `numpy`: A fundamental package for scientific computing with Python.
-*   `nvidia-cublas-cu12` and `nvidia-cudnn-cu12`: CUDA and cuDNN libraries for NVIDIA GPUs.
-*   `watchdog`: A library for monitoring file system events.
-*   `pyinstaller`: A tool to package Python applications into standalone executables.
+The installer:
 
-## Setup and Installation
+1. installs FFmpeg with `pacman` if it is missing (Arch; other systems are told
+   what to install),
+2. creates a private virtual environment in `~/.local/share/whisperstt/venv`,
+3. installs `whisperstt` and its dependencies into it,
+4. installs the CUDA 12 runtime libraries when an NVIDIA GPU is present,
+5. links the `whisperstt` command into `~/.local/bin`,
+6. adopts a model left over from an older layout, if there is one,
+7. opens the model chooser when no model is configured yet.
 
-1.  **Create a Virtual Environment:**
-
-    ```bash
-    python3 -m venv venv
-    source venv/bin/activate
-    ```
-
-2.  **Install Dependencies:**
-
-    *   **On Arch Linux:**
-
-        The `requirement.sh` script can be used to install all the necessary dependencies:
-
-        ```bash
-        bash requirement.sh
-        ```
-
-    *   **On other Linux distributions and Windows:**
-
-        *   Install **FFmpeg**, **CUDA**, and **cuDNN** by following the official instructions for your operating system.
-        *   Install the required Python packages using `pip`:
-
-            ```bash
-            pip install --upgrade pip
-            pip install faster-whisper numpy nvidia-cublas-cu12 nvidia-cudnn-cu12 watchdog pyinstaller
-            ```
-
-3.  **Configure `path.json`:**
-
-    Create a file named `path.json` in the root directory of the project with the following content:
-
-    ```json
-    {
-        "whisper_model": "whisperModels/faster-whisper-small",
-        "save_path": "transcriptions",
-        "WATCH_DIR": "watch",
-        "TRANSCRIPT_SCRIPT": "src/transcript.py",
-        "PYTHON_EXEC": "venv/bin/python"
-    }
-    ```
-
-    *   `whisper_model`: The path to the `faster-whisper` model.
-    *   `save_path`: The directory where the transcription files will be saved.
-    *   `WATCH_DIR`: The directory to watch for new files.
-    *   `TRANSCRIPT_SCRIPT`: The path to the `transcript.py` script.
-    *   `PYTHON_EXEC`: The path to the Python executable in your virtual environment.
+Re-run `./install.sh` after updating the source to install the new version.
 
 ## Usage
 
-### Transcribing a Single File
-
-To transcribe a single audio or video file, run the `transcript.py` script with the file path as an argument:
-
 ```bash
-python src/transcript.py /path/to/your/audio_or_video.mp3
+whisperstt movie.mkv                    # one file
+whisperstt *.mkv                        # several; the model is loaded once
+whisperstt "Episode 01.mkv" -l en       # force a language
+whisperstt movie.mkv --translate        # translate speech into English
+whisperstt --watch ~/Downloads          # transcribe files as they arrive
 ```
 
-The transcription will be saved in the directory specified in `save_path` in the `path.json` file.
+Subtitles are written next to each input file: `movie.mkv` becomes `movie.srt`.
+That is exactly where players such as VLC, mpv, Plex and Jellyfin look for them,
+so they load automatically.
 
-### Watching a Directory
+| Option | Description |
+| --- | --- |
+| `-m, --model NAME` | Use a specific model for this run |
+| `-l, --language CODE` | Force a language instead of auto-detecting |
+| `--translate` | Translate the speech into English |
+| `-o, --output DIR` | Write `.srt` files into `DIR` |
+| `-f, --force` | Overwrite an existing `.srt` instead of skipping it |
+| `--models` | Choose or download a model |
+| `--watch DIR` | Watch a directory and transcribe new files |
+| `--setup` | Install missing GPU libraries |
+| `-q, --quiet` | Only print errors |
+| `--device auto\|cuda\|cpu` | Override device detection |
 
-To automatically transcribe new files added to a directory, run the `watch.py` script:
+While transcribing, a progress bar with an ETA is drawn on stderr. It is hidden
+when the output is redirected, so logs stay clean:
 
-```bash
-python src/watch.py
+```
+  █████████████████░░░░░░░░░░░░░  57.9%  59:27 / 1:42:46  ETA 04:02
 ```
 
-The script will watch the directory specified in `WATCH_DIR` in the `path.json` file. When a new file is added, it will be automatically transcribed.
+## Models
 
-## Whisper Models
+Run `whisperstt --models` to change the default. Sizes and VRAM figures are
+for the packaged `faster-whisper` models:
 
-The `faster-whisper` library uses the same models as the original Whisper model. You can download the models from the [Hugging Face model repository](https://huggingface.co/guillaumekln).
+| Model | Disk | VRAM (float16) | Notes |
+| --- | --- | --- | --- |
+| `tiny` | 75 MB | ~0.8 GB | fastest, lowest accuracy |
+| `base` | 141 MB | ~1.0 GB | |
+| `small` | 464 MB | ~1.5 GB | good speed/accuracy balance |
+| `medium` | 1.4 GB | ~2.9 GB | |
+| `large-v3-turbo` | 1.5 GB | ~2.9 GB | near `large-v3` quality, ~3x faster |
+| `large-v3` | 2.9 GB | ~4.9 GB | best accuracy |
 
-The available models are:
+The VRAM column includes roughly 0.6 GB of CUDA overhead. If a model does not
+fit in your GPU's memory, a quantised `int8_float16` version is used
+automatically, which roughly halves the requirement.
 
-*   `tiny`
-*   `base`
-*   `small`
-*   `medium`
-*   `large`
+Models are stored in `~/.local/share/whisperstt/models/<model>` and are
+downloaded on first use, from the Hugging Face Hub.
 
-The larger the model, the more accurate the transcription, but it will also be slower and require more memory. The `small` model is a good balance between accuracy and performance.
+## Files and configuration
+
+| What | Where |
+| --- | --- |
+| Command | `~/.local/bin/whisperstt` |
+| Virtualenv | `~/.local/share/whisperstt/venv` |
+| Models | `~/.local/share/whisperstt/models` |
+| Settings | `~/.config/whisperstt/config.json` |
+
+`XDG_DATA_HOME`, `XDG_CONFIG_HOME` and `XDG_BIN_HOME` are respected. The
+settings file is written by `whisperstt --models`; the available keys are:
+
+```json
+{
+  "model": "large-v3",
+  "language": null,
+  "output_dir": null,
+  "device": "auto",
+  "vad": true,
+  "compute_type": "auto"
+}
+```
+
+## Notes
+
+* **Silence and music** are skipped by voice activity detection (`vad`). Without
+  it, Whisper invents lines during music or long pauses, and may misdetect the
+  language of a film that opens with a score.
+* **`--translate` only translates into English.** Whisper cannot translate into
+  other languages.
+* **A system CUDA 13 install is not enough** on its own: `ctranslate2` is built
+  against CUDA 12 and looks for `libcublas.so.12`. The installer adds the CUDA 12
+  runtime as pip packages and `whisperstt` preloads them, so no
+  `LD_LIBRARY_PATH` tweaking is needed.
+* **Existing `.srt` files are never overwritten** unless you pass `--force`.
+
+## Development
+
+```bash
+python3 -m venv venv
+venv/bin/python -m pip install -e .
+venv/bin/python -m unittest discover -s tests -v
+```
+
+The code lives in `src/whisperstt`:
+
+| Module | Responsibility |
+| --- | --- |
+| `cli.py` | Argument parsing, file planning, top-level flow |
+| `config.py` | XDG paths and `config.json` |
+| `models.py` | Model table, VRAM sizing, chooser and downloader |
+| `cuda.py` | GPU probing and CUDA 12 library preloading |
+| `audio.py` | FFmpeg decoding to 16 kHz mono samples |
+| `subtitle.py` | SRT formatting and atomic file writing |
+| `transcribe.py` | Model loading, transcription, progress bar |
+| `watch.py` | Directory watching |
+| `setup.py` | `--setup` dependency installation |

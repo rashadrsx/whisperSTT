@@ -9,13 +9,32 @@ __pycache__/
 *$py.class
 *.so
 
-# Output files
-*.md
-*.txt
+# Build artifacts
+build/
+dist/
+*.egg-info/
 
-# Model files (they're large)
-whisperModels/
-path.json
+# Subtitle output
+*.srt
+
+# Input media (movies and episodes are large, keep them out of the repo)
+*.mp4
+*.mkv
+*.avi
+*.webm
+*.mov
+*.m4v
+*.flv
+*.mpg
+*.mpeg
+*.wmv
+*.mp3
+*.wav
+*.m4a
+*.flac
+*.aac
+*.ogg
+*.opus
 
 # OS files
 .DS_Store
