@@ -1,8 +1,9 @@
 """Model catalogue: sizing, interactive selection and download."""
 
 import os
+import sys
 
-from . import config
+from . import config, theme
 from .cuda import detect_gpu
 
 MODEL_TABLE = (
@@ -59,7 +60,14 @@ def get(name):
         if entry["name"] == name:
             return entry
     choices = ", ".join(entry["name"] for entry in MODEL_TABLE)
-    raise SystemExit(f"Unknown model {name!r}. Available: {choices}")
+    raise SystemExit(
+        theme.paint(
+            f"Unknown model {name!r}. Available: {choices}",
+            "accent",
+            "bold",
+            stream=sys.stderr,
+        )
+    )
 
 
 def model_path(name):
@@ -87,10 +95,19 @@ def default_model(gpu=None):
 
 def choose_model(preselected=None):
     gpu = detect_gpu()
+    print(theme.banner("choose a model"))
+
     if gpu:
-        print(f"Detected GPU: {gpu[0]} — {gpu[1] / 1024:.1f} GB VRAM")
+        print(
+            f"  {theme.mark('bullet')} {theme.paint(gpu[0], 'primary', 'bold')} "
+            f"{theme.paint(f'· {gpu[1] / 1024:.1f} GB VRAM', 'muted')}"
+        )
     else:
-        print("No NVIDIA GPU detected: models will run on CPU (much slower).")
+        print(
+            f"  {theme.mark('bullet')} "
+            f"{theme.paint('No NVIDIA GPU', 'primary', 'bold')} "
+            f"{theme.paint('· models will run on CPU (much slower)', 'muted')}"
+        )
 
     default = preselected or default_model(gpu)
     default_index = next(
@@ -98,29 +115,72 @@ def choose_model(preselected=None):
     )
 
     print()
-    print("  #  model             disk      VRAM     notes")
+    header = (
+        f"  {'':1} {'#':>2}  {'model':<16}  {'disk':>7}  {'VRAM':>8}  notes"
+    )
+    print(theme.paint(header, "muted"))
+    print("  " + theme.paint("─" * 60, "rule"))
+
     for index, entry in enumerate(MODEL_TABLE, 1):
         too_big = bool(gpu) and entry["vram_mb"] > gpu[1] * VRAM_HEADROOM
-        note = entry["note"]
+        selected = entry["name"] == default
+        marker = "▸" if selected else " "
+        number = f"{index:>2}"
+        name = f"{entry['name']:<16}"
+        disk = f"{format_size(entry['disk_mb']):>7}"
+        vram = f"{'~' + format_size(entry['vram_mb']):>8}"
+
+        notes = []
+        if entry["note"]:
+            notes.append(theme.paint(entry["note"], "muted"))
         if too_big:
-            note = (note + " " if note else "") + "(exceeds your GPU)"
-        vram = "~" + format_size(entry["vram_mb"])
-        print(
-            f"  {index}  {entry['name']:<16}  "
-            f"{format_size(entry['disk_mb']):>7}  "
-            f"{vram:>8}  {note}"
+            notes.append(theme.paint("exceeds your GPU", "accent"))
+        if is_installed(entry["name"]):
+            notes.append(
+                theme.paint(
+                    "installed", "bg:light_greige", "on_surface", "bold"
+                )
+            )
+
+        line = (
+            f"  {theme.paint(marker, 'accent' if selected else 'muted')} "
+            f"{theme.paint(number, 'accent' if selected else 'muted')}  "
+            f"{theme.paint(name, 'primary', 'bold' if selected else 'dim')}  "
+            f"{theme.paint(disk, 'muted')}  {theme.paint(vram, 'muted')}"
         )
+        if notes:
+            line += "  " + "  ".join(notes)
+        print(line)
 
     while True:
+        prompt = (
+            theme.paint("  Choose model", "primary", "bold")
+            + " "
+            + theme.paint(
+                str(default_index), "bg:terracotta", "on_accent", "bold"
+            )
+            + theme.paint(": ", "primary")
+        )
         try:
-            answer = input(f"\nChoose [{default_index}]: ").strip()
+            answer = input(prompt).strip()
         except (EOFError, KeyboardInterrupt):
-            raise SystemExit("\nNo model selected.")
+            print()
+            raise SystemExit(
+                theme.paint(
+                    "No model selected.",
+                    "accent",
+                    "bold",
+                    stream=sys.stderr,
+                )
+            )
         if not answer:
             return MODEL_TABLE[default_index - 1]["name"]
         if answer.isdigit() and 1 <= int(answer) <= len(MODEL_TABLE):
             return MODEL_TABLE[int(answer) - 1]["name"]
-        print("Enter one of the numbers above.")
+        print(
+            f"  {theme.mark('warn')} "
+            f"{theme.paint('Enter one of the numbers above.', 'muted')}"
+        )
 
 
 def ensure_model(name, quiet=False):
@@ -132,9 +192,12 @@ def ensure_model(name, quiet=False):
 
     target.mkdir(parents=True, exist_ok=True)
     if not quiet:
+        size = format_size(entry["disk_mb"])
         print(
-            f"Downloading {name} ({format_size(entry['disk_mb'])}) "
-            f"from {entry['repo']}..."
+            f"  {theme.mark('step')} {theme.paint('Downloading', 'primary')} "
+            f"{theme.paint(name, 'accent', 'bold')} "
+            f"{theme.paint(f'({size})', 'muted')} "
+            f"{theme.paint('from', 'muted')} {theme.paint(entry['repo'], 'muted')}"
         )
 
     # The Xet transfer backend has been observed to stall at 0 bytes on some
@@ -148,14 +211,29 @@ def ensure_model(name, quiet=False):
     try:
         snapshot_download(repo_id=entry["repo"], local_dir=str(target))
     except Exception as exc:
-        raise SystemExit(f"Could not download {name}: {exc}")
+        raise SystemExit(
+            theme.paint(
+                f"Could not download {name}: {exc}",
+                "accent",
+                "bold",
+                stream=sys.stderr,
+            )
+        )
 
     if not is_installed(name):
         raise SystemExit(
-            f"Download of {name} is incomplete (model.bin missing) in {target}."
+            theme.paint(
+                f"Download of {name} is incomplete (model.bin missing) in {target}.",
+                "accent",
+                "bold",
+                stream=sys.stderr,
+            )
         )
     if not quiet:
-        print(f"Model ready at {target}")
+        print(
+            f"  {theme.mark('ok')} {theme.paint('Model ready at', 'primary')} "
+            f"{theme.paint(str(target), 'muted')}"
+        )
     return target
 
 

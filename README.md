@@ -6,11 +6,16 @@ you have one. Powered by [`faster-whisper`](https://github.com/SYSTRAN/faster-wh
 ```console
 $ whisperstt Snatch.2000.1080p.BluRay.x264-YTS.AM.mp4
 
-Loading model...
+  ▌ whisperstt
+    transcribe · large-v3 · cuda
+  ────────────────────────────────────────────────────
 
-Snatch.2000.1080p.BluRay.x264-YTS.AM.mp4
-Transcribing 1:42:46 of audio...
-Saved 1674 subtitles -> Snatch.2000.1080p.BluRay.x264-YTS.AM.srt
+  › Loading large-v3 · cuda · float16
+
+  ▌ Snatch.2000.1080p.BluRay.x264-YTS.AM.mp4
+  › Transcribing 1:42:46 of audio
+  █████████████████░░░░░░░░░░░░░  57.9%  59:27 / 1:42:46  ETA 04:02
+  ✓ Saved 1674 subtitles → Snatch.2000.1080p.BluRay.x264-YTS.AM.srt
 ```
 
 ## Requirements
@@ -73,6 +78,25 @@ when the output is redirected, so logs stay clean:
 ```
   █████████████████░░░░░░░░░░░░░  57.9%  59:27 / 1:42:46  ETA 04:02
 ```
+
+## Theme
+
+The installer, model chooser, setup screen, progress bar and watcher all share
+one warm parchment palette:
+
+| Role | Colour |
+| --- | --- |
+| Background and light surface | `#FAF9F5` cream |
+| Primary text and dark elements | `#141413` slate ink |
+| Accent, CTAs and highlights | `#D97757` terracotta |
+| Borders and card shading | `#E8E6DC` light greige |
+| Secondary text and boundaries | `#B1ADA1` warm slate |
+
+Colour is emitted only to a terminal. It is disabled by `NO_COLOR`,
+`CLICOLOR=0` or `TERM=dumb`, and 256-colour terminals receive approximate
+fallbacks. Set `FORCE_COLOR=1` to keep the palette when output is piped.
+Text automatically switches to slate ink on light terminals (using
+`COLORFGBG`); set `WHISPERSTT_BACKGROUND=light` or `dark` to force it.
 
 ## Models
 
@@ -144,6 +168,7 @@ The code lives in `src/whisperstt`:
 | Module | Responsibility |
 | --- | --- |
 | `cli.py` | Argument parsing, file planning, top-level flow |
+| `theme.py` | Palette, colour detection and shared UI glyphs |
 | `config.py` | XDG paths and `config.json` |
 | `models.py` | Model table, VRAM sizing, chooser and downloader |
 | `cuda.py` | GPU probing and CUDA 12 library preloading |

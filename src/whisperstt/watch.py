@@ -6,6 +6,8 @@ from pathlib import Path
 from watchdog.events import FileSystemEventHandler
 from watchdog.observers import Observer
 
+from . import theme
+
 STABLE_CHECKS = 3
 STABLE_INTERVAL = 1.0
 
@@ -42,7 +44,11 @@ class _Handler(FileSystemEventHandler):
         if path.suffix.lower() in self.ignore:
             return
         if not _wait_until_stable(path):
-            print(f"Gave up waiting for {path.name} to finish copying.")
+            message = f"Gave up waiting for {path.name} to finish copying."
+            print(
+                f"  {theme.mark('warn')} "
+                f"{theme.paint(message, 'muted')}"
+            )
             return
         self.callback(path)
 
@@ -52,13 +58,22 @@ def watch_directory(directory, callback, ignore_suffixes=(".srt", ".tmp", ".part
     directory.mkdir(parents=True, exist_ok=True)
 
     observer = Observer()
-    observer.schedule(_Handler(callback, ignore_suffixes), str(directory), recursive=False)
+    observer.schedule(
+        _Handler(callback, ignore_suffixes), str(directory), recursive=False
+    )
     observer.start()
-    print(f"Watching {directory} — press Ctrl+C to stop.")
+    print(
+        f"  {theme.mark('step')} {theme.paint('Watching', 'primary')} "
+        f"{theme.paint(str(directory), 'accent', 'bold')} "
+        f"{theme.paint('· Ctrl+C to stop', 'muted')}"
+    )
     try:
         while True:
             time.sleep(1)
     except KeyboardInterrupt:
-        print("\nStopping watcher...")
+        print(
+            f"  {theme.mark('step')} "
+            f"{theme.paint('Stopping watcher...', 'muted')}"
+        )
         observer.stop()
     observer.join()

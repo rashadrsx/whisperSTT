@@ -1,8 +1,11 @@
 """Audio decoding via ffmpeg."""
 
 import subprocess
+import sys
 
 import numpy as np
+
+from . import theme
 
 SAMPLE_RATE = 16000
 
@@ -29,10 +32,26 @@ def extract_audio(path):
         ) as process:
             audio_bytes, error = process.communicate()
     except FileNotFoundError:
-        raise SystemExit("ffmpeg is not installed or not on your PATH.")
+        raise SystemExit(
+            theme.paint(
+                "ffmpeg is not installed or not on your PATH.",
+                "accent",
+                "bold",
+                stream=sys.stderr,
+            )
+        )
 
     if process.returncode != 0 or not audio_bytes:
         message = error.decode(errors="replace").strip() or "no audio stream found"
-        raise SystemExit(f"Could not decode audio from {path}:\n{message}")
+        raise SystemExit(
+            theme.paint(
+                f"Could not decode audio from {path}:",
+                "accent",
+                "bold",
+                stream=sys.stderr,
+            )
+            + "\n"
+            + theme.paint(message, "muted", stream=sys.stderr)
+        )
 
     return np.frombuffer(audio_bytes, np.int16).astype(np.float32) / 32768.0

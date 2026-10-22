@@ -5,6 +5,7 @@ import time
 
 import numpy as np
 
+from . import theme
 from .audio import SAMPLE_RATE, extract_audio
 from .cuda import preload_cuda_libraries
 from .subtitle import format_clock
@@ -17,12 +18,17 @@ SPLIT_SEARCH_SECONDS = 20
 SPLIT_FRAME_SECONDS = 0.5
 
 
-def load_model(model_dir, device, compute_type, quiet=False):
+def load_model(model_dir, device, compute_type, quiet=False, name=None):
     preload_cuda_libraries()
     from faster_whisper import WhisperModel
 
     if not quiet:
-        print("Loading model...")
+        label = name or getattr(model_dir, "name", str(model_dir))
+        print(
+            f"  {theme.mark('step')} {theme.paint('Loading', 'primary')} "
+            f"{theme.paint(label, 'accent', 'bold')} "
+            f"{theme.paint(f'· {device} · {compute_type}', 'muted')}"
+        )
     return WhisperModel(str(model_dir), device=device, compute_type=compute_type)
 
 
@@ -30,13 +36,23 @@ def render_progress(done, total, started, width=30):
     done = min(done, total) if total else done
     ratio = min(max(done / total, 0.0), 1.0) if total else 0.0
     filled = int(ratio * width)
-    bar = "█" * filled + "░" * (width - filled)
+    bar = theme.paint("█" * filled, "accent", stream=sys.stderr) + theme.paint(
+        "░" * (width - filled), "muted", stream=sys.stderr
+    )
     elapsed = time.perf_counter() - started
     eta = elapsed / ratio - elapsed if ratio else 0
-    sys.stderr.write(
-        f"\r  {bar} {ratio * 100:5.1f}%  {format_clock(done)} / {format_clock(total)}"
-        f"  ETA {format_clock(eta)}"
+    percent = theme.paint(
+        f"{ratio * 100:5.1f}%", "accent", "bold", stream=sys.stderr
     )
+    clocks = theme.paint(
+        f"{format_clock(done)} / {format_clock(total)}",
+        "primary",
+        stream=sys.stderr,
+    )
+    remaining = theme.paint(
+        f"ETA {format_clock(eta)}", "muted", stream=sys.stderr
+    )
+    sys.stderr.write(f"\r  {bar} {percent}  {clocks}  {remaining}")
     sys.stderr.flush()
 
 
@@ -74,7 +90,11 @@ def transcribe_audio(model, audio, language=None, translate=False, vad=True, qui
     total_seconds = len(audio) / SAMPLE_RATE
 
     if not quiet:
-        print(f"Transcribing {format_clock(total_seconds)} of audio...")
+        print(
+            f"  {theme.mark('step')} {theme.paint('Transcribing', 'primary')} "
+            f"{theme.paint(format_clock(total_seconds), 'accent', 'bold')} "
+            f"{theme.paint('of audio', 'muted')}"
+        )
 
     options = {"beam_size": 1, "vad_filter": vad}
     if translate:
